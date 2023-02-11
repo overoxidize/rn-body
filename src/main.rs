@@ -121,3 +121,43 @@ unsafe fn offset_momentum(bodies: *mut body) {
 
 
 }
+
+unsafe fn output_energy(bodies: *mut body) {
+    let mut energy = 0.;
+
+    for i in 0..BODIES_COUNT {
+        // Adding the kinetic energy of the bodies in the system.
+            // Noting that the kinetic energy of an object is directly proportional
+            // to the the square of the velocity, i.e K.E = 1/2 * (mv^2).
+        energy += 0.5 * (*bodies.add(i)).mass * (
+                (*bodies.add(i)).velocity[0] * (*bodies.add(i)).velocity[0] +
+                (*bodies.add(i)).velocity[1] * (*bodies.add(i)).velocity[1] +
+                (*bodies.add(i)).velocity[2] * (*bodies.add(i)).velocity[2] 
+            );
+
+        for j in i+1..BODIES_COUNT {
+            let mut position_delta = [mem::MaybeUninit::<f64>::uninit(); 3];
+
+            for m in 0..3 {
+                position_delta[m].as_mut_ptr().write(
+                    (*bodies.add(i)).position[m] 
+                            - (*bodies.add(j)).position[m]
+                );
+            }
+            
+            let position_delta: [f64; 3] = mem::transmute((position_delta));
+            
+            energy -= (*bodies.add(i)).mass
+            * (*bodies.add(j)).mass
+            / f64::sqrt(
+                position_delta[0] * position_delta[0] +
+                    position_delta[1] * position_delta[1] +
+                    position_delta[2] * position_delta[2]
+            );
+
+
+        }
+    }
+
+    println!("{:.9}", energy);
+}
