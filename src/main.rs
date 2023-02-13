@@ -24,12 +24,12 @@ const DAYS_PER_YEAR: f64 = 365.24;
 const BODIES_COUNT: usize = 5;
 
 static mut solar_bodies: [body; BODIES_COUNT] = [
-    body { // Jupiter
+    body { 
         mass: SOLAR_MASS,
         position: [0.; 3],
         velocity: [0.; 3],
     },
-    body {
+    body {// Jupiter
         position: [
             4.84143144246472090e+00,
             -1.16032004402742839e+00,
@@ -136,17 +136,21 @@ unsafe fn output_energy(bodies: *mut body) {
             );
 
         for j in i+1..BODIES_COUNT {
+            // Sums up the potential energy betweeen a given body in the
+            // outer loop, and every other possible body.
             let mut position_delta = [mem::MaybeUninit::<f64>::uninit(); 3];
-
+            // MaybeUninit<T> is for expressing addresses which have not been initialized to a value.
             for m in 0..3 {
                 position_delta[m].as_mut_ptr().write(
+                    // Here, we write to a raw pointer, without reading from it first.
                     (*bodies.add(i)).position[m] 
                             - (*bodies.add(j)).position[m]
                 );
             }
             
             let position_delta: [f64; 3] = mem::transmute((position_delta));
-            
+            // mem::transmute allows for converting between types as long as they're
+            // represented by the same number of bits (or bytes, possibly), in memory.
             energy -= (*bodies.add(i)).mass
             * (*bodies.add(j)).mass
             / f64::sqrt(
