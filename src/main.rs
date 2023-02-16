@@ -3,8 +3,8 @@
     non_camel_case_types,
     non_snake_case,
 )]
+use std::arch::x86_64::{__m128d, _mm_add_pd, _mm_mul_pd};
 use std::mem;
-use std::arch::x86_64::*;
 use std::f64::consts::PI;
 fn main() {
 
@@ -148,7 +148,7 @@ unsafe fn output_energy(bodies: *mut body) {
                 );
             }
             
-            let position_delta: [f64; 3] = mem::transmute((position_delta));
+            let position_delta: [f64; 3] = mem::transmute(position_delta);
             // mem::transmute allows for converting between types as long as they're
             // represented by the same number of bits (or bytes, possibly), in memory.
             energy -= (*bodies.add(i)).mass
@@ -162,6 +162,53 @@ unsafe fn output_energy(bodies: *mut body) {
 
         }
     }
-
     println!("{:.9}", energy);
+
+}
+
+unsafe fn advance(bodies: *mut body) {
+    const INTERACTIONS_COUNT: usize = BODIES_COUNT * (BODIES_COUNT - 1) / 2;
+    const ROUNDED_INTERACTIONS_COUNT: usize = INTERACTIONS_COUNT + INTERACTIONS_COUNT % 2;
+
+    #[repr(align(16))]
+    #[derive(Copy, Clone)]
+    struct Align16([f64; ROUNDED_INTERACTIONS_COUNT]);
+
+    static mut position_deltas: [Align16; 3] = [Align16([0.; ROUNDED_INTERACTIONS_COUNT]); 3];
+
+    static mut magnitudes: Align16 = Align16([0.; ROUNDED_INTERACTIONS_COUNT]);
+
+    {
+        let mut k = 0;
+
+        for i in 0..BODIES_COUNT-1 {
+            for j in i+1..BODIES_COUNT {
+                for m in 0..3 {
+                    position_deltas[m].0[k] = (*bodies.add(i)).position[m]
+                        - (*bodies.add(j)).position[m];
+                }
+                k += 1;
+            }
+        }
+    }
+
+    for i in 0..ROUNDED_INTERACTIONS_COUNT/2 {
+        let mut position_delta = [mem::MaybeUninit::<__m128d>::uninit(); 3];
+
+        for m in 0..3 {
+            position_delta[m].as_mut_ptr().write(
+                *(&position_deltas[m].0
+                    as *const f64
+                    as *const __m128d).add(i)
+            );
+        }
+
+        let position_delta: [__m128d; 3] = mem::transmute(position_delta);
+    }
+
+    // let distance_squared: __m128d = _mm_add_pd(_mm_add_pd(
+    //     _mm_mul_pd(position_deltas[0])
+    // ), b)
+
+    // let mut distance;
 }
